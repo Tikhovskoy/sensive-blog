@@ -7,12 +7,30 @@ class PostQuerySet(models.QuerySet):
     def year(self, year):
         return self.filter(published_at__year=year)
 
+    def popular(self):
+        return self.annotate(likes_count=Count('likes', distinct=True)).order_by('-likes_count')
+    
+    def fetch_with_comments_count(self):
+        posts = list(self)
+        from blog.models import Comment
+        post_ids = [post.id for post in posts]
+        comments = Comment.objects.filter(post_id__in=post_ids)\
+                                  .values('post_id')\
+                                  .annotate(count=Count('id', distinct=True))
+        comments_map = {item['post_id']: item['count'] for item in comments}
+        for post in posts:
+            post.comments_count = comments_map.get(post.id, 0)
+        return posts
+
 class PostManager(models.Manager):
     def get_queryset(self):
         return PostQuerySet(self.model, using=self._db)
     
     def year(self, year):
         return self.get_queryset().year(year)
+    
+    def popular(self):
+        return self.get_queryset().popular()
 
 class Post(models.Model):
     title = models.CharField('Заголовок', max_length=200)
