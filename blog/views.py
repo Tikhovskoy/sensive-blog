@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.db.models import Count
 from blog.models import Comment, Post, Tag
 
 
@@ -28,20 +29,23 @@ def serialize_tag(tag):
 
 
 def index(request):
+    # Подсчет популярных постов:
+    # Аннотируем каждый пост числом лайков, затем сортируем по убыванию и выбираем 5 записей.
+    most_popular_posts = Post.objects.annotate(
+        likes_count=Count('likes')
+    ).order_by('-likes_count')[:5]
 
-    most_popular_posts = []  # TODO. Как это посчитать?
-
+    # Выбираем 5 самых свежих постов (последние по дате публикации)
     fresh_posts = Post.objects.order_by('published_at')
     most_fresh_posts = list(fresh_posts)[-5:]
 
+    # Популярные теги вычисляются по количеству связанных постов
     tags = Tag.objects.all()
     popular_tags = sorted(tags, key=get_related_posts_count)
     most_popular_tags = popular_tags[-5:]
 
     context = {
-        'most_popular_posts': [
-            serialize_post(post) for post in most_popular_posts
-        ],
+        'most_popular_posts': [serialize_post(post) for post in most_popular_posts],
         'page_posts': [serialize_post(post) for post in most_fresh_posts],
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
     }
@@ -60,7 +64,6 @@ def post_detail(request, slug):
         })
 
     likes = post.likes.all()
-
     related_tags = post.tags.all()
 
     serialized_post = {
@@ -79,14 +82,15 @@ def post_detail(request, slug):
     popular_tags = sorted(all_tags, key=get_related_posts_count)
     most_popular_tags = popular_tags[-5:]
 
-    most_popular_posts = []  # TODO. Как это посчитать?
+    # Подсчет популярных постов аналогично вьюхе index
+    most_popular_posts = Post.objects.annotate(
+        likes_count=Count('likes')
+    ).order_by('-likes_count')[:5]
 
     context = {
         'post': serialized_post,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
-        'most_popular_posts': [
-            serialize_post(post) for post in most_popular_posts
-        ],
+        'most_popular_posts': [serialize_post(post) for post in most_popular_posts],
     }
     return render(request, 'post-details.html', context)
 
@@ -98,7 +102,10 @@ def tag_filter(request, tag_title):
     popular_tags = sorted(all_tags, key=get_related_posts_count)
     most_popular_tags = popular_tags[-5:]
 
-    most_popular_posts = []  # TODO. Как это посчитать?
+    # Подсчет популярных постов
+    most_popular_posts = Post.objects.annotate(
+        likes_count=Count('likes')
+    ).order_by('-likes_count')[:5]
 
     related_posts = tag.posts.all()[:20]
 
@@ -106,14 +113,11 @@ def tag_filter(request, tag_title):
         'tag': tag.title,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
         'posts': [serialize_post(post) for post in related_posts],
-        'most_popular_posts': [
-            serialize_post(post) for post in most_popular_posts
-        ],
+        'most_popular_posts': [serialize_post(post) for post in most_popular_posts],
     }
     return render(request, 'posts-list.html', context)
 
 
 def contacts(request):
-    # позже здесь будет код для статистики заходов на эту страницу
-    # и для записи фидбека
+    # Код для страницы контактов, статистики заходов и фидбека
     return render(request, 'contacts.html', {})
