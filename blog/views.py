@@ -3,10 +3,6 @@ from django.db.models import Count
 from blog.models import Comment, Post, Tag
 
 
-def get_related_posts_count(tag):
-    return tag.posts.count()
-
-
 def serialize_post(post):
     return {
         'title': post.title,
@@ -24,25 +20,21 @@ def serialize_post(post):
 def serialize_tag(tag):
     return {
         'title': tag.title,
-        'posts_with_tag': len(Post.objects.filter(tags=tag)),
+        'posts_with_tag': tag.posts.count(),
     }
 
 
 def index(request):
-    # Подсчет популярных постов:
-    # Аннотируем каждый пост числом лайков, затем сортируем по убыванию и выбираем 5 записей.
     most_popular_posts = Post.objects.annotate(
         likes_count=Count('likes')
     ).order_by('-likes_count')[:5]
 
-    # Выбираем 5 самых свежих постов (последние по дате публикации)
     fresh_posts = Post.objects.order_by('published_at')
     most_fresh_posts = list(fresh_posts)[-5:]
 
-    # Популярные теги вычисляются по количеству связанных постов
-    tags = Tag.objects.all()
-    popular_tags = sorted(tags, key=get_related_posts_count)
-    most_popular_tags = popular_tags[-5:]
+    most_popular_tags = Tag.objects.annotate(
+        posts_count=Count('posts')
+    ).order_by('-posts_count')[:5]
 
     context = {
         'most_popular_posts': [serialize_post(post) for post in most_popular_posts],
@@ -78,11 +70,10 @@ def post_detail(request, slug):
         'tags': [serialize_tag(tag) for tag in related_tags],
     }
 
-    all_tags = Tag.objects.all()
-    popular_tags = sorted(all_tags, key=get_related_posts_count)
-    most_popular_tags = popular_tags[-5:]
+    most_popular_tags = Tag.objects.annotate(
+        posts_count=Count('posts')
+    ).order_by('-posts_count')[:5]
 
-    # Подсчет популярных постов аналогично вьюхе index
     most_popular_posts = Post.objects.annotate(
         likes_count=Count('likes')
     ).order_by('-likes_count')[:5]
@@ -98,11 +89,10 @@ def post_detail(request, slug):
 def tag_filter(request, tag_title):
     tag = Tag.objects.get(title=tag_title)
 
-    all_tags = Tag.objects.all()
-    popular_tags = sorted(all_tags, key=get_related_posts_count)
-    most_popular_tags = popular_tags[-5:]
+    most_popular_tags = Tag.objects.annotate(
+        posts_count=Count('posts')
+    ).order_by('-posts_count')[:5]
 
-    # Подсчет популярных постов
     most_popular_posts = Post.objects.annotate(
         likes_count=Count('likes')
     ).order_by('-likes_count')[:5]
@@ -119,5 +109,4 @@ def tag_filter(request, tag_title):
 
 
 def contacts(request):
-    # Код для страницы контактов, статистики заходов и фидбека
     return render(request, 'contacts.html', {})
