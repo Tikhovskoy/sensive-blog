@@ -22,7 +22,7 @@ def serialize_post_optimized(post):
         'title': post.title,
         'teaser_text': post.text[:200],
         'author': post.author.username,
-        'comments_amount': len(Comment.objects.filter(post=post)),
+        'comments_amount': post.comments_count if hasattr(post, 'comments_count') else len(Comment.objects.filter(post=post)),
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
@@ -40,7 +40,10 @@ def serialize_tag(tag):
 
 def index(request):
     most_popular_posts = (
-        Post.objects.annotate(likes_count=Count('likes'))
+        Post.objects.annotate(
+            likes_count=Count('likes', distinct=True),
+            comments_count=Count('comments', distinct=True)
+        )
         .order_by('-likes_count')
         .select_related('author')
         .prefetch_related('tags')
@@ -51,11 +54,12 @@ def index(request):
         Post.objects.order_by('-published_at')
         .select_related('author')
         .prefetch_related('tags')
+        .annotate(comments_count=Count('comments', distinct=True))
         [:5]
     )
 
     most_popular_tags = (
-        Tag.objects.annotate(posts_count=Count('posts'))
+        Tag.objects.annotate(posts_count=Count('posts', distinct=True))
         .order_by('-posts_count')
         [:5]
     )
@@ -100,7 +104,9 @@ def post_detail(request, slug):
     )
 
     most_popular_posts = (
-        Post.objects.annotate(likes_count=Count('likes'))
+        Post.objects.annotate(
+            likes_count=Count('likes')
+        )
         .order_by('-likes_count')
         .select_related('author')
         .prefetch_related('tags')
@@ -125,7 +131,9 @@ def tag_filter(request, tag_title):
     )
 
     most_popular_posts = (
-        Post.objects.annotate(likes_count=Count('likes'))
+        Post.objects.annotate(
+            likes_count=Count('likes')
+        )
         .order_by('-likes_count')
         .select_related('author')
         .prefetch_related('tags')
