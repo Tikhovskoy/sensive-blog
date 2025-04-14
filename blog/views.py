@@ -4,6 +4,7 @@ from blog.models import Comment, Post, Tag
 
 
 def serialize_post(post):
+    first_tag = post.tags.first()
     return {
         'title': post.title,
         'teaser_text': post.text[:200],
@@ -13,7 +14,7 @@ def serialize_post(post):
         'published_at': post.published_at,
         'slug': post.slug,
         'tags': [serialize_tag(tag) for tag in post.tags.all()],
-        'first_tag_title': post.tags.all()[0].title if post.tags.exists() else '',
+        'first_tag_title': first_tag.title if first_tag else '',
     }
 
 
@@ -55,6 +56,7 @@ def post_detail(request, slug):
         'tags',
         queryset=Tag.objects.annotate(posts_count=Count('posts', distinct=True))
     )
+
     post = Post.objects.select_related('author')\
                 .prefetch_related(tags_prefetch)\
                 .get(slug=slug)
@@ -106,6 +108,7 @@ def tag_filter(request, tag_title):
                            .select_related('author')\
                            .prefetch_related(tags_prefetch)[:5]\
                            .fetch_with_comments_count()
+
     related_posts = tag.posts.all()\
                      .select_related('author')\
                      .prefetch_related(tags_prefetch)[:20]
