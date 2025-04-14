@@ -56,13 +56,11 @@ def post_detail(request, slug):
         'tags',
         queryset=Tag.objects.with_posts_count()
     )
-
     post = get_object_or_404(
         Post.objects.select_related('author').prefetch_related(tags_prefetch),
         slug=slug
     )
-
-    comments = Comment.objects.filter(post=post).select_related('author')
+    comments = post.comments.select_related('author')
     serialized_comments = [{
         'text': comment.text,
         'published_at': comment.published_at,
@@ -98,19 +96,17 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
-    tag = get_object_or_404(Tag, title=tag_title)
-
     tags_prefetch = Prefetch(
         'tags',
         queryset=Tag.objects.with_posts_count()
     )
+    tag = get_object_or_404(Tag, title=tag_title)
 
     most_popular_tags = Tag.objects.popular()[:5]
     most_popular_posts = Post.objects.popular()\
                            .select_related('author')\
                            .prefetch_related(tags_prefetch)[:5]\
                            .fetch_with_comments_count()
-
     related_posts = tag.posts.all()\
                      .select_related('author')\
                      .prefetch_related(tags_prefetch)[:20]
