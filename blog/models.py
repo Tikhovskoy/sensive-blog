@@ -14,8 +14,8 @@ class PostQuerySet(models.QuerySet):
         posts = list(self)
         from blog.models import Comment
         post_ids = [post.id for post in posts]
-        comments = Comment.objects.filter(post_id__in=post_ids)\
-                                  .values('post_id')\
+        comments = Comment.objects.filter(post_id__in=post_ids) \
+                                  .values('post_id') \
                                   .annotate(count=Count('id', distinct=True))
         comments_map = {item['post_id']: item['count'] for item in comments}
         for post in posts:
@@ -81,6 +81,9 @@ class TagManager(models.Manager):
     
     def popular(self):
         return self.get_queryset().popular()
+    
+    def with_posts_count(self):
+        return self.get_queryset().with_posts_count()
 
 class Tag(models.Model):
     title = models.CharField('Тег', max_length=20, unique=True)
