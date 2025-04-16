@@ -4,8 +4,7 @@ from blog.models import Comment, Post, Tag
 
 
 def serialize_post(post):
-    tags_list = list(post.tags.all())
-    first_tag = tags_list[0] if tags_list else None
+    first_tag = post.tags.first()
     return {
         'title': post.title,
         'teaser_text': post.text[:200],
@@ -15,7 +14,7 @@ def serialize_post(post):
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
-        'tags': [serialize_tag(tag) for tag in tags_list],
+        'tags': [serialize_tag(tag) for tag in post.tags.all()],
         'first_tag_title': first_tag.title if first_tag else '',
     }
 
@@ -58,10 +57,10 @@ def post_detail(request, slug):
         'tags',
         queryset=Tag.objects.with_posts_count()
     )
-
     post = get_object_or_404(
-        Post.objects.select_related('author').prefetch_related(tags_prefetch)
-                  .annotate(likes_count=Count('likes', distinct=True)),
+        Post.objects.select_related('author')
+        .prefetch_related(tags_prefetch)
+        .annotate(likes_count=Count('likes', distinct=True)),
         slug=slug
     )
     comments = post.comments.select_related('author')
@@ -110,7 +109,6 @@ def tag_filter(request, tag_title):
                            .select_related('author')\
                            .prefetch_related(tags_prefetch)[:5]\
                            .fetch_with_comments_count()
-
     related_posts = tag.posts.all()\
                      .select_related('author')\
                      .prefetch_related(tags_prefetch)[:20]
